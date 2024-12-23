@@ -51,7 +51,7 @@ func NewHandlerFactory(ctx context.Context, hf krakendgin.HandlerFactory, l logg
 		logPrefix := "[ENDPOINT: " + cfg.Endpoint + "][lognats]"
 		detectorCfg, err := ParseEndpointConfig(cfg.ExtraConfig)
 		if err != nil {
-			l.Error(logPrefix, err.Error())
+			l.Warning(logPrefix, err.Error())
 			return next
 		}
 		return handler(ctx, logPrefix, next, l, detectorCfg)
