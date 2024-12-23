@@ -88,9 +88,9 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 
 	return func(c *gin.Context) {
 
-		if c.GetHeader(cfg.CorrelationIdHeader) == "" {
+		if c.Request.Header.Get(cfg.CorrelationIdHeader) == "" {
 			id := uuid.New()
-			c.Header(cfg.CorrelationIdHeader, id.String())
+			c.Request.Header.Set(cfg.CorrelationIdHeader, id.String())
 		}
 
 		next(c)
