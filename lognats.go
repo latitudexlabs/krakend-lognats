@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/luraproject/lura/v2/config"
 	"github.com/luraproject/lura/v2/logging"
 	"github.com/luraproject/lura/v2/proxy"
@@ -20,9 +21,11 @@ import (
 
 const Namespace = "github_com/anshulgoel27/krakend-lognats"
 const authHeader = "Authorization"
+const DefaultCorrelationIdHeader = "X-Correlation-Id"
 
 type LogNatsConfig struct {
-	LogNatsTopic string `json:"log_nats_topic"`
+	LogNatsTopic        string `json:"log_nats_topic"`
+	CorrelationIdHeader string `json:"correlation_id_header"`
 	//LogRequest   bool   `json:"log_request"`
 	//LogResponse  bool   `json:"log_response"`
 }
@@ -84,9 +87,13 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 	}()
 
 	return func(c *gin.Context) {
+
+		if c.GetHeader(cfg.CorrelationIdHeader) == "" {
+			id := uuid.New()
+			c.Header(cfg.CorrelationIdHeader, id.String())
+		}
+
 		next(c)
-		statusCode := c.Writer.Status()
-		headers := c.Request.Header.Clone()
 
 		go func() {
 			payload := Payload{
@@ -95,8 +102,10 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 				Path:        c.Request.URL.Path,
 				RemoteAddr:  c.Request.RemoteAddr,
 				ForwardedIP: c.ClientIP(),
-				StatusCode:  statusCode,
+				StatusCode:  c.Writer.Status(),
 			}
+
+			headers := c.Request.Header.Clone()
 			// Remove Authorization header
 			headers.Del(authHeader)
 			payload.Headers = headers
@@ -142,6 +151,11 @@ func ParseEndpointConfig(cfg config.ExtraConfig) (LogNatsConfig, error) {
 	if res.LogNatsTopic == "" {
 		return res, ErrInvalidConfig
 	}
+
+	if res.CorrelationIdHeader == "" {
+		res.CorrelationIdHeader = DefaultCorrelationIdHeader
+	}
+
 	// if !res.LogRequest && !res.LogResponse {
 	// 	return res, ErrInvalidConfig
 	// }
