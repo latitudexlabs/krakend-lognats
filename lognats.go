@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -64,8 +65,19 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 		url = nats.DefaultURL
 	}
 
+	opts := []nats.Option{
+		nats.ReconnectWait(2 * time.Second), // Wait time between reconnect attempts
+		nats.MaxReconnects(10),              // Max number of reconnection attempts
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			l.Info("Disconnected from NATS server!")
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			l.Info("Reconnected to NATS server!")
+		}),
+	}
+
 	// Connect to NATS server
-	nc, err := nats.Connect(url)
+	nc, err := nats.Connect(url, opts...)
 	if err != nil {
 		l.Error(fmt.Sprintf("%s Error connecting to NATS: %s", logPrefix, err.Error()))
 		return next
