@@ -19,6 +19,7 @@ import (
 )
 
 const Namespace = "github_com/anshulgoel27/krakend-lognats"
+const authHeader = "Authorization"
 
 type LogNatsConfig struct {
 	LogNatsTopic string `json:"log_nats_topic"`
@@ -83,21 +84,25 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 	}()
 
 	return func(c *gin.Context) {
-
-		payload := Payload{
-			Method:      c.Request.Method,
-			URL:         c.Request.URL.RequestURI(),
-			Path:        c.Request.URL.Path,
-			RemoteAddr:  c.Request.RemoteAddr,
-			ForwardedIP: c.ClientIP(),
-			Headers:     c.Request.Header,
-		}
-
 		next(c)
-
-		payload.StatusCode = c.Writer.Status()
-
 		go func() {
+
+			payload := Payload{
+				Method:      c.Request.Method,
+				URL:         c.Request.URL.RequestURI(),
+				Path:        c.Request.URL.Path,
+				RemoteAddr:  c.Request.RemoteAddr,
+				ForwardedIP: c.ClientIP(),
+				Headers:     c.Request.Header,
+				StatusCode:  c.Writer.Status(),
+			}
+
+			headers := c.Request.Header.Clone()
+
+			// Remove Authorization header
+			headers.Del(authHeader)
+			payload.Headers = headers
+
 			raw, _ := io.ReadAll(c.Request.Body)
 			if len(raw) > 0 {
 				c.Request.Body = io.NopCloser(bytes.NewReader(raw))
@@ -106,6 +111,7 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 					payload.Data = pl
 				}
 			}
+
 			b, err := json.Marshal(payload)
 			if err == nil {
 				// Publish the message to the topic
