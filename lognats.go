@@ -85,20 +85,18 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 
 	return func(c *gin.Context) {
 		next(c)
-		go func() {
+		statusCode := c.Writer.Status()
+		headers := c.Request.Header.Clone()
 
+		go func() {
 			payload := Payload{
 				Method:      c.Request.Method,
 				URL:         c.Request.URL.RequestURI(),
 				Path:        c.Request.URL.Path,
 				RemoteAddr:  c.Request.RemoteAddr,
 				ForwardedIP: c.ClientIP(),
-				Headers:     c.Request.Header,
-				StatusCode:  c.Writer.Status(),
+				StatusCode:  statusCode,
 			}
-
-			headers := c.Request.Header.Clone()
-
 			// Remove Authorization header
 			headers.Del(authHeader)
 			payload.Headers = headers
