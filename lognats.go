@@ -134,14 +134,14 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 
 			b, err := json.Marshal(payload)
 			if err == nil {
+				msgHeaders := nats.Header{}
+				msgHeaders.Set(orgHeader, headers.Get(orgHeader))
+
 				// Publish the message to the topic
 				msg := &nats.Msg{
 					Subject: cfg.LogNatsTopic,
 					Data:    b,
-				}
-
-				if msg.Header != nil {
-					msg.Header.Add(orgHeader, headers.Get(orgHeader))
+					Header:  msgHeaders,
 				}
 
 				if _, err := js.PublishMsgAsync(msg); err != nil {
