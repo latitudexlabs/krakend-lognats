@@ -22,6 +22,7 @@ import (
 
 const Namespace = "github_com/anshulgoel27/krakend-lognats"
 const authHeader = "Authorization"
+const orgHeader = "X-Org-Id"
 const DefaultCorrelationIdHeader = "X-Correlation-Id"
 
 type LogNatsConfig struct {
@@ -137,6 +138,10 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 				msg := &nats.Msg{
 					Subject: cfg.LogNatsTopic,
 					Data:    b,
+				}
+
+				if msg.Header != nil {
+					msg.Header.Add(orgHeader, headers.Get(orgHeader))
 				}
 
 				if _, err := js.PublishMsgAsync(msg); err != nil {
