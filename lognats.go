@@ -106,6 +106,13 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 			c.Request.Header.Set(cfg.CorrelationIdHeader, id.String())
 		}
 
+		// Read body early
+		var bodyCopy []byte
+		if c.Request.Body != nil {
+			bodyCopy, _ = io.ReadAll(c.Request.Body)
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyCopy))
+		}
+
 		next(c)
 
 		go func() {
@@ -123,11 +130,9 @@ func handler(ctx context.Context, logPrefix string, next gin.HandlerFunc, l logg
 			headers.Del(authHeader)
 			payload.Headers = headers
 
-			raw, _ := io.ReadAll(c.Request.Body)
-			if len(raw) > 0 {
-				c.Request.Body = io.NopCloser(bytes.NewReader(raw))
+			if len(bodyCopy) > 0 {
 				var pl map[string]interface{}
-				if err := json.Unmarshal(raw, &pl); err == nil {
+				if err := json.Unmarshal(bodyCopy, &pl); err == nil {
 					payload.Data = pl
 				}
 			}
